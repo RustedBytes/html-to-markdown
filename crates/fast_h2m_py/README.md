@@ -21,6 +21,18 @@ markdown = fast_h2m.convert_to_markdown(
 `fast_dom` skips the richer metadata, structure, visitor, selector, and repair
 machinery used by the full converter.
 
+On supported Linux and Windows wheels, choose the parser backend at runtime:
+
+```python
+markdown = fast_h2m.convert_to_markdown(
+    html,
+    {"tier_strategy": "tier2", "parser_backend": "asm_tl"},
+)
+```
+
+`rustedbytes_tl` remains the default. Selecting `asm_tl` in a build that does
+not include or support it raises a configuration error.
+
 For mdream-backed lean conversion:
 
 ```python

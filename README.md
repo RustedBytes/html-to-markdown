@@ -160,6 +160,40 @@ markdown.push_str(&stream.finish());
 `Mdream` is a lean mode and does not populate rich side channels such as
 metadata, document structure, tables, visitor output, or inline images.
 
+### asm_tl Backend
+
+`rustedbytes-tl` is the default runtime backend. Enable the `asm-tl` Cargo
+feature to compile support for [`asm_tl`](https://github.com/RustedBytes/asm_tl)
+into the same binary:
+
+```toml
+fast_h2m = { version = "0.4", features = ["asm-tl"] }
+```
+
+Choose the parser independently for each conversion:
+
+```rust
+use fast_h2m::{convert, ConversionOptions, ParserBackend, TierStrategy};
+
+let rustedbytes = convert("<h1>Hello</h1>", ConversionOptions {
+    tier_strategy: TierStrategy::Tier2,
+    parser_backend: ParserBackend::RustedBytesTl,
+    ..Default::default()
+})?;
+
+let assembly = convert("<h1>Hello</h1>", ConversionOptions {
+    tier_strategy: TierStrategy::Tier2,
+    parser_backend: ParserBackend::AsmTl,
+    ..Default::default()
+})?;
+```
+
+The selection applies to `TierStrategy::Tier2`, `FastDom`, and `Auto` fallback
+to Tier-2. Use `Tier2` or `FastDom` when the chosen parser must always run. The
+assembly backend supports x86-64 Linux, AArch64 Linux, RISC-V 64 Linux, and
+x86-64 Windows MSVC. Selecting it without feature or target support returns
+`ConversionError::ConfigError`.
+
 ### Preserving HTML Tags
 
 The `preserve_tags` option allows you to keep specific HTML tags in their original form instead of converting them to Markdown:

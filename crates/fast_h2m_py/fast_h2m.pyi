@@ -5,10 +5,13 @@ from typing import Any, Dict, List, Literal, Optional, TypedDict, Union
 __version__: str
 
 TierStrategy = Literal["auto", "tier2", "fast_dom", "mdream"]
+ParserBackend = Literal["rustedbytes_tl", "asm_tl"]
 
 class ConversionOptions(TypedDict, total=False):
     tier_strategy: TierStrategy
     tierStrategy: TierStrategy
+    parser_backend: ParserBackend
+    parserBackend: ParserBackend
     heading_style: str
     list_indent_type: str
     list_indent_width: int

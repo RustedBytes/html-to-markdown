@@ -1,6 +1,23 @@
+import platform
+import sys
+
 import pytest
 
 import fast_h2m
+
+
+ASM_TL_TARGET_SUPPORTED = (
+    sys.platform.startswith("linux")
+    and platform.machine().lower()
+    in {"x86_64", "amd64", "aarch64", "arm64", "riscv64"}
+) or (
+    sys.platform == "win32"
+    and platform.machine().lower() in {"x86_64", "amd64"}
+)
+
+
+def test_package_version():
+    assert fast_h2m.__version__ == "0.4.3"
 
 
 def test_convert_returns_result_dict():
@@ -68,6 +85,21 @@ def test_fast_dom_tier_strategy_accepts_camel_case_alias():
 
     assert "# Hello" in markdown
     assert "World" in markdown
+
+
+@pytest.mark.skipif(not ASM_TL_TARGET_SUPPORTED, reason="asm_tl target is unsupported")
+def test_parser_backend_can_be_selected_at_runtime():
+    html = "<h1>Runtime backend</h1><p>Same conversion.</p>"
+    rustedbytes = fast_h2m.convert_to_markdown(
+        html,
+        {"tier_strategy": "tier2", "parser_backend": "rustedbytes_tl"},
+    )
+    assembly = fast_h2m.convert_to_markdown(
+        html,
+        {"tier_strategy": "tier2", "parser_backend": "asm_tl"},
+    )
+
+    assert assembly == rustedbytes
 
 
 def test_mdream_tier_strategy_is_available():

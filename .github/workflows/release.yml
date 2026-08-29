@@ -48,14 +48,14 @@ jobs:
         uses: PyO3/maturin-action@v1
         with:
           command: build
-          args: --manifest-path crates/fast_h2m_py/Cargo.toml --release --strip --out dist --zig --interpreter python3.8 --features extension-module
+          args: --manifest-path crates/fast_h2m_py/Cargo.toml --release --strip --out dist --zig --interpreter python3.8 --features extension-module,asm-tl
 
       - name: Build wheels (Windows/macOS)
         if: matrix.platform == 'windows' || matrix.platform == 'macos'
         uses: PyO3/maturin-action@v1
         with:
           command: build
-          args: --manifest-path crates/fast_h2m_py/Cargo.toml --release --strip --out dist --features extension-module
+          args: --manifest-path crates/fast_h2m_py/Cargo.toml --release --strip --out dist --features extension-module,asm-tl
 
       - name: Verify wheels are abi3
         shell: bash

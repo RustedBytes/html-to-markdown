@@ -6,7 +6,7 @@ members = [
 ]
 
 [workspace.package]
-version = "0.4.2"
+version = "0.4.3"
 edition = "2024"
 authors = ["Na'aman Hirschfeld <naaman@kreuzberg.dev>", "Yehor Smoliakov <egorsmkv@gmail.com>"]
 description = "High-performance HTML to Markdown converter"
@@ -20,6 +20,7 @@ categories = ["text-processing", "web-programming"]
 rust-version = "1.95"
 
 [workspace.dependencies]
+asm_tl = "0.2.0"
 base64 = "0.22"
 html5ever = "0.39.0"
 mdream = "1.2.2"
@@ -37,4 +38,4 @@ strip = true
 debug = 1
 
 [patch.crates-io]
-fast_h2m = { path = "crates/fast_h2m", version = "0.4.2" }
+fast_h2m = { path = "crates/fast_h2m", version = "0.4.3" }

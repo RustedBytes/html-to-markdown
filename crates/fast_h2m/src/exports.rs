@@ -21,8 +21,8 @@ pub use crate::metadata::{
 pub use crate::options::{
     CodeBlockStyle, ConversionOptions, ConversionOptionsBuilder, ConversionOptionsUpdate,
     HeadingStyle, HighlightStyle, LinkStyle, ListIndentType, NewlineStyle, OutputFormat,
-    PreprocessingOptions, PreprocessingOptionsUpdate, PreprocessingPreset, TierStrategy,
-    WhitespaceMode,
+    ParserBackend, PreprocessingOptions, PreprocessingOptionsUpdate, PreprocessingPreset,
+    TierStrategy, WhitespaceMode,
 };
 
 pub use crate::mdream_adapter::MarkdownStreamProcessor;

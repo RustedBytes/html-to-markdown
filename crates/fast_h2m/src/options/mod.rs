@@ -11,7 +11,8 @@ pub mod validation;
 
 // Re-exports for easy access
 pub use conversion::{
-    ConversionOptions, ConversionOptionsBuilder, ConversionOptionsUpdate, TierStrategy,
+    ConversionOptions, ConversionOptionsBuilder, ConversionOptionsUpdate, ParserBackend,
+    TierStrategy,
 };
 pub use preprocessing::{PreprocessingOptions, PreprocessingOptionsUpdate, PreprocessingPreset};
 pub use validation::{

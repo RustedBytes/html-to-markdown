@@ -9,7 +9,7 @@ use memchr::{memchr, memchr3, memmem};
 #[cfg(any(feature = "metadata", feature = "inline-images"))]
 use crate::ConversionError;
 use crate::error::Result;
-use crate::options::{ConversionOptions, WhitespaceMode};
+use crate::options::{ConversionOptions, ParserBackend, WhitespaceMode};
 use crate::text;
 use crate::types::ConversionResult;
 use crate::validation::{Utf16Encoding, detect_utf16_encoding, validate_input};
@@ -96,8 +96,48 @@ fn convert_inner(html: &str, options: ConversionOptions) -> Result<ConversionRes
 
     match options.tier_strategy {
         crate::options::TierStrategy::FastDom => {
+            validate_parser_backend(options.parser_backend)?;
             let normalized = normalize_input_for_fast_dom(html)?;
-            let markdown = crate::converter::fast_dom::convert(normalized.as_ref(), &options)?;
+            let markdown = match options.parser_backend {
+                ParserBackend::RustedBytesTl => {
+                    crate::converter::fast_dom::convert(normalized.as_ref(), &options)?
+                }
+                ParserBackend::AsmTl => {
+                    #[cfg(all(
+                        feature = "asm-tl",
+                        any(
+                            all(target_arch = "x86_64", target_os = "linux"),
+                            all(target_arch = "aarch64", target_os = "linux"),
+                            all(target_arch = "riscv64", target_os = "linux"),
+                            all(
+                                target_arch = "x86_64",
+                                target_os = "windows",
+                                target_env = "msvc"
+                            )
+                        )
+                    ))]
+                    {
+                        crate::asm_backend::converter::fast_dom::convert(
+                            normalized.as_ref(),
+                            &options,
+                        )?
+                    }
+                    #[cfg(not(all(
+                        feature = "asm-tl",
+                        any(
+                            all(target_arch = "x86_64", target_os = "linux"),
+                            all(target_arch = "aarch64", target_os = "linux"),
+                            all(target_arch = "riscv64", target_os = "linux"),
+                            all(
+                                target_arch = "x86_64",
+                                target_os = "windows",
+                                target_env = "msvc"
+                            )
+                        )
+                    )))]
+                    unreachable!("parser backend availability was validated")
+                }
+            };
             return Ok(conversion_result_from_content(markdown));
         }
         crate::options::TierStrategy::Mdream => {
@@ -180,6 +220,11 @@ fn convert_inner(html: &str, options: ConversionOptions) -> Result<ConversionRes
         return Ok(conversion_result_from_content(markdown));
     }
 
+    // Validation happens only once the selected strategy actually reaches a
+    // DOM-backed parser. `Mdream`, Tier-1, and plain-text fast paths do not use
+    // either parser backend.
+    validate_parser_backend(options.parser_backend)?;
+
     // Determine whether metadata / inline-image extraction is requested.
     #[cfg(feature = "metadata")]
     let wants_metadata = options.extract_metadata;
@@ -228,10 +273,52 @@ fn convert_inner(html: &str, options: ConversionOptions) -> Result<ConversionRes
     // Run the conversion pipeline.
     // Pass structure_collector by value — convert_html_impl will consume it via Rc::try_unwrap
     // to return the finished DocumentStructure. We must not hold a second Rc reference.
+    macro_rules! convert_with_parser_backend {
+        ($($argument:expr),+ $(,)?) => {
+            match options.parser_backend {
+                ParserBackend::RustedBytesTl => {
+                    crate::converter::convert_html_impl($($argument),+)
+                }
+                ParserBackend::AsmTl => {
+                    #[cfg(all(
+                        feature = "asm-tl",
+                        any(
+                            all(target_arch = "x86_64", target_os = "linux"),
+                            all(target_arch = "aarch64", target_os = "linux"),
+                            all(target_arch = "riscv64", target_os = "linux"),
+                            all(
+                                target_arch = "x86_64",
+                                target_os = "windows",
+                                target_env = "msvc"
+                            )
+                        )
+                    ))]
+                    {
+                        crate::asm_backend::converter::convert_html_impl($($argument),+)
+                    }
+                    #[cfg(not(all(
+                        feature = "asm-tl",
+                        any(
+                            all(target_arch = "x86_64", target_os = "linux"),
+                            all(target_arch = "aarch64", target_os = "linux"),
+                            all(target_arch = "riscv64", target_os = "linux"),
+                            all(
+                                target_arch = "x86_64",
+                                target_os = "windows",
+                                target_env = "msvc"
+                            )
+                        )
+                    )))]
+                    unreachable!("parser backend availability was validated")
+                }
+            }
+        };
+    }
+
     let (markdown, document, tables) = {
         #[cfg(all(feature = "metadata", feature = "inline-images"))]
         {
-            crate::converter::convert_html_impl(
+            convert_with_parser_backend!(
                 normalized_html.as_ref(),
                 &options,
                 image_collector.as_ref().map(Rc::clone),
@@ -242,7 +329,7 @@ fn convert_inner(html: &str, options: ConversionOptions) -> Result<ConversionRes
         }
         #[cfg(all(feature = "metadata", not(feature = "inline-images")))]
         {
-            crate::converter::convert_html_impl(
+            convert_with_parser_backend!(
                 normalized_html.as_ref(),
                 &options,
                 None,
@@ -253,7 +340,7 @@ fn convert_inner(html: &str, options: ConversionOptions) -> Result<ConversionRes
         }
         #[cfg(all(not(feature = "metadata"), feature = "inline-images"))]
         {
-            crate::converter::convert_html_impl(
+            convert_with_parser_backend!(
                 normalized_html.as_ref(),
                 &options,
                 image_collector.as_ref().map(Rc::clone),
@@ -264,7 +351,7 @@ fn convert_inner(html: &str, options: ConversionOptions) -> Result<ConversionRes
         }
         #[cfg(all(not(feature = "metadata"), not(feature = "inline-images")))]
         {
-            crate::converter::convert_html_impl(
+            convert_with_parser_backend!(
                 normalized_html.as_ref(),
                 &options,
                 None,
@@ -330,6 +417,45 @@ fn convert_inner(html: &str, options: ConversionOptions) -> Result<ConversionRes
         images,
         warnings,
     })
+}
+
+fn validate_parser_backend(backend: ParserBackend) -> Result<()> {
+    if backend == ParserBackend::RustedBytesTl {
+        return Ok(());
+    }
+
+    #[cfg(all(
+        feature = "asm-tl",
+        any(
+            all(target_arch = "x86_64", target_os = "linux"),
+            all(target_arch = "aarch64", target_os = "linux"),
+            all(target_arch = "riscv64", target_os = "linux"),
+            all(target_arch = "x86_64", target_os = "windows", target_env = "msvc")
+        )
+    ))]
+    {
+        Ok(())
+    }
+
+    #[cfg(not(all(
+        feature = "asm-tl",
+        any(
+            all(target_arch = "x86_64", target_os = "linux"),
+            all(target_arch = "aarch64", target_os = "linux"),
+            all(target_arch = "riscv64", target_os = "linux"),
+            all(target_arch = "x86_64", target_os = "windows", target_env = "msvc")
+        )
+    )))]
+    {
+        let reason = if cfg!(feature = "asm-tl") {
+            "it is not supported on this target"
+        } else {
+            "the `asm-tl` Cargo feature is disabled"
+        };
+        Err(crate::error::ConversionError::ConfigError(format!(
+            "the `asm_tl` parser backend is unavailable: {reason}"
+        )))
+    }
 }
 
 fn conversion_result_from_content(markdown: String) -> ConversionResult {

@@ -57,6 +57,40 @@ pub enum TierStrategy {
     Tier1,
 }
 
+/// Selects the HTML parser used by DOM-backed conversion paths.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
+#[cfg_attr(
+    any(feature = "serde", feature = "metadata"),
+    derive(serde::Serialize, serde::Deserialize)
+)]
+#[cfg_attr(
+    any(feature = "serde", feature = "metadata"),
+    serde(rename_all = "snake_case")
+)]
+pub enum ParserBackend {
+    /// Use the portable `rustedbytes-tl` parser.
+    #[default]
+    #[cfg_attr(
+        any(feature = "serde", feature = "metadata"),
+        serde(
+            rename = "rustedbytes_tl",
+            alias = "rustedbytes-tl",
+            alias = "rusted_bytes_tl"
+        )
+    )]
+    RustedBytesTl,
+    /// Use the assembly-accelerated `asm_tl` parser.
+    ///
+    /// This requires the `asm-tl` Cargo feature and a target supported by
+    /// `asm_tl`. Conversion returns [`crate::ConversionError::ConfigError`]
+    /// when the backend is unavailable.
+    #[cfg_attr(
+        any(feature = "serde", feature = "metadata"),
+        serde(rename = "asm_tl", alias = "asm-tl")
+    )]
+    AsmTl,
+}
+
 /// Main conversion options for HTML to Markdown conversion.
 ///
 /// Use [`ConversionOptions::builder()`] to construct, or [`Default::default()`] for defaults.
@@ -386,6 +420,15 @@ pub struct ConversionOptions {
     )]
     pub tier_strategy: TierStrategy,
 
+    /// HTML parser backend for Tier-2 and `FastDom` conversion.
+    ///
+    /// `Auto` also uses this backend whenever it falls back to Tier-2.
+    #[cfg_attr(
+        any(feature = "serde", feature = "metadata"),
+        serde(default, alias = "parserBackend")
+    )]
+    pub parser_backend: ParserBackend,
+
     /// Optional visitor for custom traversal logic.
     ///
     /// When set, the visitor's callbacks are invoked for matching HTML elements
@@ -442,6 +485,7 @@ impl Default for ConversionOptions {
             max_depth: None,
             exclude_selectors: Vec::new(),
             tier_strategy: TierStrategy::Auto,
+            parser_backend: ParserBackend::default(),
             #[cfg(feature = "visitor")]
             visitor: None,
         }
@@ -609,6 +653,7 @@ impl ConversionOptionsBuilder {
 
     // Tier strategy
     builder_setter!(tier_strategy, TierStrategy);
+    builder_setter!(parser_backend, ParserBackend);
 
     /// Build the final [`ConversionOptions`].
     #[must_use]
@@ -721,6 +766,8 @@ pub struct ConversionOptionsUpdate {
     pub exclude_selectors: Option<Vec<String>>,
     /// Optional override for [`ConversionOptions::tier_strategy`].
     pub tier_strategy: Option<TierStrategy>,
+    /// Optional override for [`ConversionOptions::parser_backend`].
+    pub parser_backend: Option<ParserBackend>,
     /// Optional override for [`ConversionOptions::visitor`].
     #[cfg(feature = "visitor")]
     #[cfg_attr(any(feature = "serde", feature = "metadata"), serde(skip))]
@@ -779,6 +826,7 @@ impl ConversionOptions {
         apply!(max_depth);
         apply!(exclude_selectors);
         apply!(tier_strategy);
+        apply!(parser_backend);
         #[cfg(feature = "visitor")]
         if let Some(visitor) = update.visitor {
             self.visitor = Some(visitor);
@@ -850,6 +898,23 @@ mod tests {
     }
 
     #[test]
+    fn test_parser_backend_serde_names() {
+        assert_eq!(
+            serde_json::to_string(&ParserBackend::RustedBytesTl).expect("serialize backend"),
+            r#""rustedbytes_tl""#
+        );
+        assert_eq!(
+            serde_json::from_str::<ParserBackend>(r#""rustedbytes-tl""#)
+                .expect("deserialize backend alias"),
+            ParserBackend::RustedBytesTl
+        );
+        assert_eq!(
+            serde_json::from_str::<ParserBackend>(r#""asm_tl""#).expect("deserialize asm backend"),
+            ParserBackend::AsmTl
+        );
+    }
+
+    #[test]
     fn test_conversion_options_camel_case_deserialization() {
         let json = r#"{
             "headingStyle": "atxclosed",
@@ -891,7 +956,8 @@ mod tests {
             "inferDimensions": false,
             "maxDepth": 8,
             "excludeSelectors": null,
-            "tierStrategy": "tier2"
+            "tierStrategy": "tier2",
+            "parserBackend": "asm_tl"
         }"#;
 
         let deserialized: ConversionOptions =
@@ -931,6 +997,7 @@ mod tests {
         assert_eq!(deserialized.max_depth, Some(8));
         assert!(deserialized.exclude_selectors.is_empty());
         assert_eq!(deserialized.tier_strategy, TierStrategy::Tier2);
+        assert_eq!(deserialized.parser_backend, ParserBackend::AsmTl);
     }
 
     #[test]
@@ -941,6 +1008,7 @@ mod tests {
             .wrap_width(100)
             .include_document_structure(true)
             .extract_images(true)
+            .parser_backend(ParserBackend::AsmTl)
             .build();
 
         assert_eq!(options.heading_style, HeadingStyle::Underlined);
@@ -948,5 +1016,6 @@ mod tests {
         assert_eq!(options.wrap_width, 100);
         assert!(options.include_document_structure);
         assert!(options.extract_images);
+        assert_eq!(options.parser_backend, ParserBackend::AsmTl);
     }
 }

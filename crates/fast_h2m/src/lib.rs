@@ -3,7 +3,8 @@
 
 //! High-performance HTML to Markdown converter.
 //!
-//! Built with html5ever for fast, memory-efficient HTML parsing.
+//! Built with fast, memory-efficient HTML parsing. Enable the optional `asm-tl`
+//! feature to use the assembly-accelerated Tier-2 parser on supported targets.
 //!
 //! ## Optional inline image extraction
 //!
@@ -21,6 +22,32 @@ pub mod options;
 pub mod types;
 #[cfg(feature = "visitor")]
 pub mod visitor;
+
+#[cfg(all(
+    feature = "asm-tl",
+    any(
+        all(target_arch = "x86_64", target_os = "linux"),
+        all(target_arch = "aarch64", target_os = "linux"),
+        all(target_arch = "riscv64", target_os = "linux"),
+        all(target_arch = "x86_64", target_os = "windows", target_env = "msvc")
+    )
+))]
+#[allow(dead_code, unused_imports)]
+pub(crate) mod asm_backend {
+    pub(crate) mod tl_types {
+        pub type Dom<'a> = asm_tl::VDom<'a, 32, 0, 0, 16, 16, 0>;
+        pub type Parser<'a> = asm_tl::Parser<'a, 32, 0, 0, 16, 16, 0>;
+    }
+
+    pub(crate) mod prelude {
+        #![allow(unused_imports)]
+        include!(concat!(env!("OUT_DIR"), "/asm_backend/prelude.rs"));
+    }
+
+    pub(crate) mod converter {
+        include!(concat!(env!("OUT_DIR"), "/asm_backend/converter/mod.rs"));
+    }
+}
 
 // Internal modules (not part of public API)
 mod convert_api;

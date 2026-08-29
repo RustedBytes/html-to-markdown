@@ -41,7 +41,7 @@ jobs:
         working-directory: crates/fast_h2m_py
         run: |
           source ../../.venv/bin/activate
-          maturin develop --release --features extension-module
+          maturin develop --release --features extension-module,asm-tl
 
       - name: Run Python tests
         working-directory: crates/fast_h2m_py

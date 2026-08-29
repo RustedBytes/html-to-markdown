@@ -39,6 +39,16 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "940b3a0ca603d1eade50a4846a2afffd5ef57a9feac2c0e2ec2e14f9ead76000"
 
 [[package]]
+name = "asm_tl"
+version = "0.2.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "d938dbe8e82eaa35193041d285a94d9b8e0855ac8300daca7ec3b8b3264a0f62"
+dependencies = [
+ "cc",
+ "memchr",
+]
+
+[[package]]
 name = "autocfg"
 version = "1.5.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -237,8 +247,9 @@ checksum = "91622ff5e7162018101f2fea40d6ebf4a78bbe5a49736a2020649edf9693679e"
 
 [[package]]
 name = "fast_h2m"
-version = "0.4.2"
+version = "0.4.3"
 dependencies = [
+ "asm_tl",
  "base64",
  "bitflags",
  "criterion",
@@ -256,7 +267,7 @@ dependencies = [
 
 [[package]]
 name = "fast_h2m_py"
-version = "0.4.2"
+version = "0.4.3"
 dependencies = [
  "fast_h2m",
  "pyo3",
