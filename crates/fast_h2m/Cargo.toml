@@ -34,7 +34,7 @@ testkit = []
 [dependencies]
 base64.workspace = true
 bitflags = "2"
-html-escape = "0.2.13"
+html-escape = "0.2.15"
 html5ever.workspace = true
 image = { version = "0.25", default-features = false, features = [
     "gif",
@@ -45,7 +45,7 @@ image = { version = "0.25", default-features = false, features = [
 ], optional = true }
 mdream.workspace = true
 memchr = "2"
-phf = { version = "0.13", features = ["macros"] }
+phf = { version = "0.14", features = ["macros"] }
 serde = { version = "1.0", features = ["derive"], optional = true }
 serde_json = { version = "1.0", optional = true }
 thiserror.workspace = true
